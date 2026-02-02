@@ -15,6 +15,7 @@ from transformers import (
     PreTrainedTokenizerBase,
     AutoTokenizer,
     AutoModelForCausalLM,
+    Gemma3ForCausalLM,
 )
 
 from .dataset import DatasetEntry
@@ -338,8 +339,13 @@ class SteeringModel(torch.nn.Module):
 
         super().__init__()
         self.model_name = model_name
-
-        self.model = AutoModelForCausalLM.from_pretrained(
+        if "gemma" in model_name:
+            model_class = Gemma3ForCausalLM
+            print("gemma")
+        else:
+            model_class = AutoModelForCausalLM
+            
+        self.model = model_class.from_pretrained(
             # self.model_name, token=token, torch_dtype=torch.float16
             self.model_name, token=token, torch_dtype="auto"
         )
