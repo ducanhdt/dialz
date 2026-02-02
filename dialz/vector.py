@@ -340,7 +340,8 @@ class SteeringModel(torch.nn.Module):
         self.model_name = model_name
 
         self.model = AutoModelForCausalLM.from_pretrained(
-            self.model_name, token=token, torch_dtype=torch.float16
+            # self.model_name, token=token, torch_dtype=torch.float16
+            self.model_name, token=token, torch_dtype="auto"
         )
         self.token = token
 
@@ -448,8 +449,8 @@ class SteeringModel(torch.nn.Module):
 def model_layer_list(model: SteeringModel | PreTrainedModel) -> torch.nn.ModuleList:
     if isinstance(model, SteeringModel):
         model = model.model
-
     if hasattr(model, "model"):  # mistral-like
+    # if hasattr(model, "model") and hasattr(model.model, "layers"):  # mistral-like, qwen-like, gemma-like
         return model.model.layers
     elif hasattr(model, "transformer"):  # gpt-2-like
         return model.transformer.h
@@ -503,7 +504,8 @@ class SteeringModule(torch.nn.Module):
             modified = output
 
         assert len(control.shape) == len(modified.shape)
-        control = control.to(modified.device)
+        # control = control.to(modified.device)
+        control = control.to(modified.device, dtype=modified.dtype)
 
         norm_pre = torch.norm(modified, dim=-1, keepdim=True)
 
