@@ -387,6 +387,41 @@ class SteeringModel(torch.nn.Module):
             layers[layer_id] = layers[layer_id].block
         return self.model
 
+    def set_multi_control(
+        self,
+        controls: list[tuple["SteeringVector", float, list[int]]],
+        **kwargs,
+    ) -> None:
+        """
+        Apply multiple steering vectors to different layer subsets simultaneously.
+
+        Args:
+            controls: list of (vector, scalar, layer_ids) tuples. If two entries
+                      target the same layer their contributions are summed.
+        """
+        raw_control: dict[int, torch.Tensor | None] = {}
+        for vector, scalar, layer_ids in controls:
+            for layer_id in layer_ids:
+                if layer_id not in self.layer_ids:
+                    raise ValueError(
+                        f"Layer {layer_id} is not in this SteeringModel's registered "
+                        f"layer_ids {self.layer_ids}. Re-initialize with a superset."
+                    )
+                contribution = torch.tensor(
+                    scalar * vector.directions[layer_id]
+                ).to(self.model.device, dtype=self.model.dtype)
+                if layer_id in raw_control and raw_control[layer_id] is not None:
+                    raw_control[layer_id] = raw_control[layer_id] + contribution
+                else:
+                    raw_control[layer_id] = contribution
+
+        # Layers not targeted by any control entry must still be present in the
+        # dict so set_raw_control doesn't raise a KeyError; None → passthrough.
+        for layer_id in self.layer_ids:
+            raw_control.setdefault(layer_id, None)
+
+        self.set_raw_control(raw_control, **kwargs)
+
     def set_control(
         self, control: "SteeringVector", scalar: float = 1.0, **kwargs
     ) -> None:
